@@ -2,7 +2,7 @@
 
 scadawire/tango-controls integration to IP-Symcon
 
-This device driver integrates to https://www.symcon.de/de/
+This device driver integrates to the German building automation software of IP-Symcon. See also https://www.symcon.de/de/
 
 # Structure
 
