@@ -1,0 +1,3 @@
+symcon==0.0.2
+numpy==1.19.5
+pytango==9.3.2
