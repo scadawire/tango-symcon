@@ -1,5 +1,7 @@
 # see also https://pypi.org/project/symcon/
 # see also reference taken from https://github.com/scadawire/tango-mqtt
+# TODO: other syn attr properties
+# TODO: update behaviour
 
 import time
 from tango import AttrQuality, AttrWriteType, DispLevel, DevState, Attr, CmdArgType, UserDefaultAttrProp
@@ -64,10 +66,24 @@ class Symcon(Device, metaclass=DeviceMeta):
                 return True
             return bool(int(float(val)))
         if(self.dynamicAttributeValueTypes[name] == CmdArgType.DevLong):
-            return float(val)
-        if(self.dynamicAttributeValueTypes[name] == CmdArgType.DevDouble):
             return int(float(val))
+        if(self.dynamicAttributeValueTypes[name] == CmdArgType.DevDouble):
+            return float(val)
+        if(self.dynamicAttributeValueTypes[name] == CmdArgType.DevFloat):
+            return float(val)
         return val
+
+    def stringValueToWriteType(self, write_type_name):
+        writeType = AttrWriteType.READ_WRITE
+        if(write_type_name == "READ"):
+            writeType = AttrWriteType.READ
+        if(write_type_name == "WRITE"):
+            writeType = AttrWriteType.WRITE
+        if(write_type_name == "READ_WRITE"):
+            writeType = AttrWriteType.READ_WRITE
+        if(write_type_name == "READ_WITH_WRITE"):
+            writeType = AttrWriteType.READ_WITH_WRITE
+            return writeType
         
     @command(dtype_in=[str])
     def publish(self, args):
@@ -106,7 +122,9 @@ class Symcon(Device, metaclass=DeviceMeta):
                 if(variableType == CmdArgType.DevLong): # requires for ints the value to be in int format as well
                     min_value = str(int(float(varDetails["Profile"]["MinValue"])))
                     max_value = str(int(float(varDetails["Profile"]["MinValue"])))
-        attr = Attr(name, variableType, AttrWriteType.READ_WRITE)
+
+        writeType = self.stringValueToWriteType("READ_WRITE") # TODO: is this exposed over symcon?
+        attr = Attr(name, variableType, writeType)
         prop = UserDefaultAttrProp()
         if(min_value != "" and min_value != max_value): 
             prop.set_min_value(min_value)
