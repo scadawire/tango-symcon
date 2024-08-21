@@ -58,7 +58,10 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.debug_stream("starting update of all values")
         start_update = time.time()
         for n in self.dynamicAttributes:
-           self.updateValue(name)
+            try:
+                self.updateValue(name)
+            except Exception as e:
+                self.warn_stream("update issue: " . str(e))
         self.debug_stream("finished update of all values, took: " + (time.time() - start_update) + "s")
         self.last_update = time.time()
         self.syncing = False
