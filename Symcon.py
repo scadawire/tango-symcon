@@ -21,38 +21,45 @@ class Symcon(Device, metaclass=DeviceMeta):
     password = device_property(dtype=str, default_value="")
     protocol = device_property(dtype=str, default_value="http")
     objectid = device_property(dtype=int, default_value=0)
+    updateIntervalPoll = device_property(dtype=int, default_value=5)
     connection = 0
     dynamicAttributes = {}
     dynamicAttributeNameIds = {}
     dynamicAttributeNameTypes = {}
     dynamicAttributeValueTypes = {}
+    last_update = 0
 
     @attribute
     def time(self):
         return time.time()
-    
-    @attribute
-    def poll_dummy(self):
-        updateValues() # run every second
-        return "dummy"
 
     def read_dynamic_attr(self, attr):
         name = attr.get_name()
+        self.updateCache()
         value = self.dynamicAttributes[name]
         self.debug_stream("read value " + str(name) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
     
-    def updateValues(self):
+    def updateCache(self):
+        requiresUpdate = self.last_update == 0 or (self.last_update - time.time()) > self.updateIntervalPoll
+        if(requiresUpdate == False) return
+
+        # would be nice to have, but not exposed over symcon: retrieving muitlple variable values at once
+        #params = []
+        #for n in self.dynamicAttributes:
+        #    params.append(self.dynamicAttributeNameIds[n])
+        #out = self.connection.send({"method": "GetValue", "params": params, "jsonrpc": "2.0", "id": 0})
+        #print(out)
+
         # trivial implementation, requires one api call per each var
-        # for n in self.dynamicAttributes:
-        #    self.updateValue(name)
-        params = []
+        self.debug_stream("starting update of all values")
+        start_update = time.time()
         for n in self.dynamicAttributes:
-            params.append(self.dynamicAttributeNameIds[n])
-        out = self.connection.send({"method": "GetValue", "params": params, "jsonrpc": "2.0", "id": 0})
-        print(out)
+           self.updateValue(name)
+        self.debug_stream("finished update of all values, took: " + (time.time() - start_update) + "s")
+        self.last_update = time.time()
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
