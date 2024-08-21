@@ -44,7 +44,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     
     def updateCache(self):
         requiresUpdate = self.last_update == 0 or (self.last_update - time.time()) > self.updateIntervalPoll
-        if(requiresUpdate == False) return
+        if(requiresUpdate == False): return
 
         # would be nice to have, but not exposed over symcon: retrieving muitlple variable values at once
         #params = []
