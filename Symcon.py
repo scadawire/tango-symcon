@@ -79,18 +79,20 @@ class Symcon(Device, metaclass=DeviceMeta):
             return float(val)
         return val
 
-    def stringValueToWriteType(self, write_type_name):
-        writeType = AttrWriteType.READ_WRITE
+    def stringValueToWriteType(self, write_type_name) -> AttrWriteType:
+        return AttrWriteType.READ_WRITE
         if(write_type_name == "READ"):
-            writeType = AttrWriteType.READ
+            return AttrWriteType.READ
         if(write_type_name == "WRITE"):
-            writeType = AttrWriteType.WRITE
+            return AttrWriteType.WRITE
         if(write_type_name == "READ_WRITE"):
-            writeType = AttrWriteType.READ_WRITE
+            return AttrWriteType.READ_WRITE
         if(write_type_name == "READ_WITH_WRITE"):
-            writeType = AttrWriteType.READ_WITH_WRITE
-            return writeType
-        
+            return AttrWriteType.READ_WITH_WRITE
+        if(write_type_name == ""):
+            return AttrWriteType.READ_WRITE
+        raise Exception("given write_type '" + write_type_name + "' unsupported, supported are: READ, WRITE, READ_WRITE, READ_WITH_WRITE")
+
     @command(dtype_in=[str])
     def publish(self, args):
         topic, value = args
