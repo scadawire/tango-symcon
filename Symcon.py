@@ -39,14 +39,20 @@ class Symcon(Device, metaclass=DeviceMeta):
     def read_dynamic_attr(self, attr):
         name = attr.get_name()
         value = self.dynamicAttributes[name]
-        self.info_stream("read value " + str(name) + ": " + value)
+        self.debug_stream("read value " + str(name) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
     
     def updateValues(self):
+        # trivial implementation, requires one api call per each var
+        # for n in self.dynamicAttributes:
+        #    self.updateValue(name)
+        params = []
         for n in self.dynamicAttributes:
-            self.updateValue(name)
+            params.append(self.dynamicAttributeNameIds[n])
+        out = self.connection.send({"method": "GetValue", "params": params, "jsonrpc": "2.0", "id": 0})
+        print(out)
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
