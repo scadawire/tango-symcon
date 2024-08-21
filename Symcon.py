@@ -28,6 +28,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     dynamicAttributeNameTypes = {}
     dynamicAttributeValueTypes = {}
     last_update = 0
+    syncing = False
 
     @attribute
     def time(self):
@@ -43,9 +44,9 @@ class Symcon(Device, metaclass=DeviceMeta):
         return attr
     
     def updateCache(self):
-        requiresUpdate = self.last_update == 0 or (self.last_update - time.time()) > self.updateIntervalPoll
+        requiresUpdate = (self.last_update == 0 or (self.last_update - time.time()) > self.updateIntervalPoll) and self.syncing == False
         if(requiresUpdate == False): return
-
+        self.syncing = True
         # would be nice to have, but not exposed over symcon: retrieving muitlple variable values at once
         #params = []
         #for n in self.dynamicAttributes:
@@ -60,6 +61,7 @@ class Symcon(Device, metaclass=DeviceMeta):
            self.updateValue(name)
         self.debug_stream("finished update of all values, took: " + (time.time() - start_update) + "s")
         self.last_update = time.time()
+        self.syncing = False
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
