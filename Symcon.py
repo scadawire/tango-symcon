@@ -122,8 +122,11 @@ class Symcon(Device, metaclass=DeviceMeta):
     @command(dtype_in=str)
     def add_dynamic_attribute(self, valueDetails):
         name = str(valueDetails["ObjectName"])
+        self.debug_stream("adding dynamic attribute, name: " + str(name))
         id = valueDetails["ObjectID"]
+        self.debug_stream("adding dynamic attribute, id: " + str(id))
         varDetails = self.getVarDetails(id)
+        self.debug_stream("adding dynamic attribute, var details var type: " + str(varDetails["VariableType"]))
         # see https://www.symcon.de/de/service/dokumentation/befehlsreferenz/variablenverwaltung/ips-getvariable/
         # VariableType (ab 4.0) integer Enthält den Variablentyp (0: Boolean, 1: Integer, 2: Float, 3: String)
         variableType = CmdArgType.DevString
@@ -135,6 +138,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             variableType = CmdArgType.DevDouble
         if(varDetails["VariableType"] == 3):
             variableType = CmdArgType.DevString
+        self.debug_stream("adding dynamic attribute, internal var type: " + str(variableType))
         self.dynamicAttributeValueTypes[name] = variableType
         min_value = ""
         max_value = ""
@@ -148,7 +152,10 @@ class Symcon(Device, metaclass=DeviceMeta):
                     min_value = str(int(float(varDetails["Profile"]["MinValue"])))
                     max_value = str(int(float(varDetails["Profile"]["MinValue"])))
 
+        self.debug_stream("adding dynamic attribute, min_value: " + str(min_value))
+        self.debug_stream("adding dynamic attribute, max_value: " + str(max_value))
         writeType = self.stringValueToWriteType("READ_WRITE") # TODO: is this exposed over symcon?
+        self.debug_stream("adding dynamic attribute, writeType: " + str(writeType))
         attr = Attr(name, variableType, writeType)
         prop = UserDefaultAttrProp()
         if(min_value != "" and min_value != max_value): 
@@ -157,6 +164,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             prop.set_max_value(max_value)
         if(unit != ""): 
             prop.set_unit(unit)
+        self.debug_stream("adding dynamic attribute, unit: " + str(unit))
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[name] = str(self.connection.getValue(id, False))
