@@ -38,17 +38,22 @@ class Symcon(Device, metaclass=DeviceMeta):
 
     def read_dynamic_attr(self, attr):
         name = attr.get_name()
-        Thread(target=self.updateCache).start()
+        Thread(target=self.updateCacheBounced).start()
         value = self.dynamicAttributes[name]
         self.debug_stream("read value " + str(name) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
     
-    def updateCache(self):
-        requiresUpdate = (self.last_update == 0 or (self.last_update - time.time()) > self.updateIntervalPoll) and self.syncing == False
+    def updateCacheBounced(self):
+        requiresUpdate = (self.last_update == 0 or (time.time() - self.last_update) > self.updateIntervalPoll) and self.syncing == False
         if(requiresUpdate == False): return
         self.syncing = True
+        self.updateCache()
+        self.last_update = time.time()
+        self.syncing = False
+
+    def updateCache(self):
         # would be nice to have, but not exposed over symcon: retrieving muitlple variable values at once
         #params = []
         #for n in self.dynamicAttributes:
@@ -64,9 +69,7 @@ class Symcon(Device, metaclass=DeviceMeta):
                 self.updateValue(n)
             except Exception as e:
                 self.warn_stream("update issue: " . str(e))
-        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 1)) + "s")
-        self.last_update = time.time()
-        self.syncing = False
+        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
