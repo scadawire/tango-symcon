@@ -40,7 +40,8 @@ class Symcon(Device, metaclass=DeviceMeta):
         name = attr.get_name()
         Thread(target=self.updateCacheBounced).start()
         value = self.dynamicAttributes[name]
-        self.debug_stream("read value " + str(name) + ": " + value)
+        id = self.dynamicAttributeNameIds[name]
+        self.debug_stream("read value " + str(name) + " / " + str(id) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
@@ -114,7 +115,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     def publish(self, args):
         topic, value = args
         id = self.dynamicAttributeNameIds[topic]
-        tag = "Publish variable " + str(topic) + "/" + str(id) + ": " + str(value)
+        tag = "Publish variable " + str(topic) + " / " + str(id) + ": " + str(value)
         self.info_stream(tag)
         value = self.stringValueToTypeValue(topic, value)
         self.connection.requestAction(id, value)
@@ -161,7 +162,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[name] = str(self.connection.getValue(id, False))
         self.dynamicAttributeNameIds[name] = id
-        print("added attribute: " + str(name) + " / type: " + str(variableType)
+        self.info_stream("added attribute: " + str(name) + " / type: " + str(variableType)
                + " / min: " + str(min_value) + " / max: " + str(max_value) + " / unit: " + str(unit))
         # self.publish([name, self.dynamicAttributes[name]])
 
@@ -170,15 +171,15 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.get_device_properties(self.get_device_class())
         self.info_stream("Connecting to " + str(self.host) + ":" + str(self.port))
         self.connection = symcon.Symcon(str(self.host),int(self.port),str(self.protocol),str(self.username),str(self.password))
-        print("symcon dir: " + self.connection.execCommand("IPS_GetKernelDir"))
+        self.info_stream("symcon dir: " + self.connection.execCommand("IPS_GetKernelDir"))
         kernelVersion = self.connection.execCommand("IPS_GetKernelVersion")
-        print("kernel version: " + kernelVersion)
+        self.info_stream("kernel version: " + kernelVersion)
         if(float(kernelVersion) < 6):
             raise Exception("Kernel version unsupported, requires 6 and up, detected: " + kernelVersion)
         
         details = json.loads(self.connection.getObjDetails(self.objectid))
-        print("details")
-        print(details)
+        self.info_stream("details")
+        self.info_stream(details)
         for valueOrObjectId in details["ChildrenIDs"]:
             self.addValueOrObject("", valueOrObjectId)
         self.set_state(DevState.ON)
@@ -186,7 +187,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     def addValueOrObject(self, prefix, symconId):
         objDetails = json.loads(self.connection.getObjDetails(symconId))
         objDetails["ObjectName"] = prefix + "_" + objDetails["ObjectName"]
-        print("processing object or value: " + str(symconId) + " | " + objDetails["ObjectName"])
+        self.info_stream("processing object or value: " + str(symconId) + " | " + objDetails["ObjectName"])
         # siehe auch https://www.symcon.de/de/service/dokumentation/befehlsreferenz/objektverwaltung/ips-getobject/
         if objDetails["ObjectType"] == 6: 
             self.addValueOrObject(prefix, self.resolveObjectLink(symconId))
