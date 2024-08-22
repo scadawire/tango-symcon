@@ -11,6 +11,7 @@ from tango.server import run
 import os
 import symcon
 import json
+from threading import Thread
 
 class Symcon(Device, metaclass=DeviceMeta):
     pass
@@ -36,7 +37,7 @@ class Symcon(Device, metaclass=DeviceMeta):
 
     def read_dynamic_attr(self, attr):
         name = attr.get_name()
-        self.updateCache()
+        Thread(target=self.updateCache).start()
         value = self.dynamicAttributes[name]
         self.debug_stream("read value " + str(name) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
