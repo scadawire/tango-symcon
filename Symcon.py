@@ -63,7 +63,7 @@ class Symcon(Device, metaclass=DeviceMeta):
                 self.updateValue(n)
             except Exception as e:
                 self.warn_stream("update issue: " . str(e))
-        self.debug_stream("finished update of all values, took: " + (time.time() - start_update) + "s")
+        self.debug_stream("finished update of all values, took: " + str(time.time() - start_update) + "s")
         self.last_update = time.time()
         self.syncing = False
 
