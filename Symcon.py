@@ -179,7 +179,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         
         details = json.loads(self.connection.getObjDetails(self.objectid))
         self.info_stream("details")
-        self.info_stream(details)
+        self.info_stream(str(details))
         for valueOrObjectId in details["ChildrenIDs"]:
             self.addValueOrObject("", valueOrObjectId)
         self.set_state(DevState.ON)
