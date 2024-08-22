@@ -98,7 +98,6 @@ class Symcon(Device, metaclass=DeviceMeta):
         return val
 
     def stringValueToWriteType(self, write_type_name) -> AttrWriteType:
-        return AttrWriteType.READ_WRITE
         if(write_type_name == "READ"):
             return AttrWriteType.READ
         if(write_type_name == "WRITE"):
@@ -122,7 +121,7 @@ class Symcon(Device, metaclass=DeviceMeta):
 
     @command(dtype_in=str)
     def add_dynamic_attribute(self, valueDetails):
-        name = valueDetails["ObjectName"]
+        name = str(valueDetails["ObjectName"])
         id = valueDetails["ObjectID"]
         varDetails = self.getVarDetails(id)
         # see https://www.symcon.de/de/service/dokumentation/befehlsreferenz/variablenverwaltung/ips-getvariable/
