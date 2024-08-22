@@ -164,13 +164,16 @@ class Symcon(Device, metaclass=DeviceMeta):
             prop.set_max_value(max_value)
         if(unit != ""): 
             prop.set_unit(unit)
-        self.debug_stream("adding dynamic attribute, unit: " + str(unit))
+        #self.debug_stream("adding dynamic attribute, unit: " + str(unit))
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[name] = str(self.connection.getValue(id, False))
         self.dynamicAttributeNameIds[name] = id
-        self.info_stream("added attribute: " + str(name) + " / type: " + str(variableType)
-               + " / min: " + str(min_value) + " / max: " + str(max_value) + " / unit: " + str(unit))
+        # omit unit since breaking with % sign --> + " / unit: " + str(unit)
+        self.info_stream("added attribute: name: " + str(name)
+            + " / type: " + str(variableType)
+            + " / min: " + str(min_value)
+            + " / max: " + str(max_value))
         # self.publish([name, self.dynamicAttributes[name]])
 
     def init_device(self):
