@@ -74,7 +74,11 @@ class Symcon(Device, metaclass=DeviceMeta):
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
-        self.dynamicAttributes[name] = value
+        if(self.dynamicAttributes[name] != value):
+            id = self.dynamicAttributeNameIds[name]
+            self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name])  + " to " + str(value))
+            self.dynamicAttributes[name] = value
+            self.push_change_event(name)
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
@@ -167,7 +171,8 @@ class Symcon(Device, metaclass=DeviceMeta):
         #self.debug_stream("adding dynamic attribute, unit: " + str(unit))
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
-        self.dynamicAttributes[name] = str(self.connection.getValue(id, False))
+        self.dynamicAttributes[name] = "NEW"
+        self.updateValue(name)
         self.dynamicAttributeNameIds[name] = id
         # omit unit since breaking with % sign --> + " / unit: " + str(unit)
         self.info_stream("added attribute: name: " + str(name)
