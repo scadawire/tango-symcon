@@ -78,7 +78,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             id = self.dynamicAttributeNameIds[name]
             self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name])  + " to " + str(value))
             self.dynamicAttributes[name] = value
-            self.push_change_event(name)
+            self.push_change_event(name, self.stringValueToTypeValue(name, value))
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
