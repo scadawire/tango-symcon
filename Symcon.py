@@ -172,8 +172,8 @@ class Symcon(Device, metaclass=DeviceMeta):
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[name] = "NEW"
-        self.updateValue(name)
         self.dynamicAttributeNameIds[name] = id
+        self.updateValue(name)
         # omit unit since breaking with % sign --> + " / unit: " + str(unit)
         self.info_stream("added attribute: name: " + str(name)
             + " / type: " + str(variableType)
