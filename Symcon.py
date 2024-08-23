@@ -81,7 +81,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             try:
                 self.push_change_event(name, self.stringValueToTypeValue(name, value))
             except Exception as e:
-                self.warn_stream("update issue: " . str(e))
+                self.warn_stream("update issue: " + str(e))
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
