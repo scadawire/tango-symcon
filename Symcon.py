@@ -1,7 +1,5 @@
 # see also https://pypi.org/project/symcon/
 # see also reference taken from https://github.com/scadawire/tango-mqtt
-# TODO: other syn attr properties
-# TODO: update behaviour
 
 import time
 from tango import AttrQuality, AttrWriteType, DispLevel, DevState, Attr, CmdArgType, UserDefaultAttrProp
