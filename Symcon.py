@@ -201,7 +201,11 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.set_state(DevState.ON)
         
     def addValueOrObject(self, prefix, symconId):
-        objDetails = json.loads(self.connection.getObjDetails(symconId))
+        try:
+            objDetails = json.loads(self.connection.getObjDetails(symconId))
+        except Exception as e:
+            self.warn_stream("cannot get object details: " + str(e))
+            return
         objDetails["ObjectName"] = prefix + "_" + objDetails["ObjectName"]
         self.info_stream("processing object or value: " + str(symconId) + " | " + objDetails["ObjectName"])
         # siehe auch https://www.symcon.de/de/service/dokumentation/befehlsreferenz/objektverwaltung/ips-getobject/
