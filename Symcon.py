@@ -31,7 +31,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     syncing = False
 
     @attribute
-    def time(self):
+    def time(self) -> str:
         return str(datetime.datetime.now())
 
     def read_dynamic_attr(self, attr):
@@ -127,9 +127,9 @@ class Symcon(Device, metaclass=DeviceMeta):
     @command(dtype_in=str)
     def add_dynamic_attribute(self, valueDetails):
         name = str(valueDetails["ObjectName"])
-        self.debug_stream("adding dynamic attribute, name: " + str(name))
         id = valueDetails["ObjectID"]
-        self.debug_stream("adding dynamic attribute, id: " + str(id))
+        tangoName = "symcon-" + str(id)
+        self.debug_stream("adding dynamic attribute, # " + str(id) + " / name: " + str(name))
         varDetails = self.getVarDetails(id)
         self.debug_stream("adding dynamic attribute, var details var type: " + str(varDetails["VariableType"]))
         # see https://www.symcon.de/de/service/dokumentation/befehlsreferenz/variablenverwaltung/ips-getvariable/
@@ -144,7 +144,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         if(varDetails["VariableType"] == 3):
             variableType = CmdArgType.DevString
         self.debug_stream("adding dynamic attribute, internal var type: " + str(variableType))
-        self.dynamicAttributeValueTypes[name] = variableType
+        self.dynamicAttributeValueTypes[tangoName] = variableType
         min_value = ""
         max_value = ""
         unit = ""
@@ -161,7 +161,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.debug_stream("adding dynamic attribute, max_value: " + str(max_value))
         writeType = self.stringValueToWriteType("READ_WRITE") # TODO: is this exposed over symcon?
         self.debug_stream("adding dynamic attribute, writeType: " + str(writeType))
-        attr = Attr(name, variableType, writeType)
+        attr = Attr(tangoName, variableType, writeType)
         prop = UserDefaultAttrProp()
         if(min_value != "" and min_value != max_value): 
             prop.set_min_value(min_value)
@@ -169,14 +169,15 @@ class Symcon(Device, metaclass=DeviceMeta):
             prop.set_max_value(max_value)
         if(unit != ""): 
             prop.set_unit(unit)
+        prop.set_label(name)
         #self.debug_stream("adding dynamic attribute, unit: " + str(unit))
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
-        self.dynamicAttributes[name] = "NEW"
-        self.dynamicAttributeNameIds[name] = id
-        self.updateValue(name)
+        self.dynamicAttributes[tangoName] = "NEW"
+        self.dynamicAttributeNameIds[tangoName] = id
+        self.updateValue(tangoName)
         # omit unit since breaking with % sign --> + " / unit: " + str(unit)
-        self.info_stream("added attribute: name: " + str(name)
+        self.info_stream("added attribute name: " + str(name) + " / tango name " + tangoName
             + " / type: " + str(variableType)
             + " / min: " + str(min_value)
             + " / max: " + str(max_value))
