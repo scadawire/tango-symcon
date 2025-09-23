@@ -128,7 +128,8 @@ class Symcon(Device, metaclass=DeviceMeta):
     def add_dynamic_attribute(self, valueDetails):
         name = str(valueDetails["ObjectName"])
         id = valueDetails["ObjectID"]
-        tangoName = "symcon-" + str(id)
+        # tangoName = "symcon-" + str(id) # would be better but issues with current ia references
+        tangoName = name
         self.debug_stream("adding dynamic attribute, # " + str(id) + " / name: " + str(name))
         varDetails = self.getVarDetails(id)
         self.debug_stream("adding dynamic attribute, var details var type: " + str(varDetails["VariableType"]))
