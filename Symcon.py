@@ -30,8 +30,8 @@ class Symcon(Device, metaclass=DeviceMeta):
     last_update = 0
     syncing = False
 
-    @attribute
-    def time(self) -> str:
+    @attribute(dtype=str)
+    def time(self):
         return str(datetime.datetime.now())
 
     def read_dynamic_attr(self, attr):
