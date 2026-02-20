@@ -9,7 +9,8 @@ from tango.server import run
 import os
 import symcon
 import json
-from threading import Thread
+import threading
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 
 class Symcon(Device, metaclass=DeviceMeta):
@@ -22,13 +23,6 @@ class Symcon(Device, metaclass=DeviceMeta):
     protocol = device_property(dtype=str, default_value="http")
     objectid = device_property(dtype=int, default_value=0)
     updateIntervalPoll = device_property(dtype=int, default_value=5)
-    connection = 0
-    dynamicAttributes = {}
-    dynamicAttributeNameIds = {}
-    dynamicAttributeNameTypes = {}
-    dynamicAttributeValueTypes = {}
-    last_update = 0
-    syncing = False
 
     @attribute(dtype=str)
     def time(self):
@@ -36,39 +30,35 @@ class Symcon(Device, metaclass=DeviceMeta):
 
     def read_dynamic_attr(self, attr):
         name = attr.get_name()
-        self.updateCacheBounced()
         value = self.dynamicAttributes[name]
         id = self.dynamicAttributeNameIds[name]
         self.debug_stream("read value " + str(name) + " / " + str(id) + ": " + value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
-    
-    def updateCacheBounced(self):
-        requiresUpdate = (self.last_update == 0 or (time.time() - self.last_update) > self.updateIntervalPoll) and self.syncing == False
-        if(requiresUpdate == False): return
-        self.syncing = True
-        Thread(target=self.updateCache).start()
 
-    def updateCache(self):
-        # would be nice to have, but not exposed over symcon: retrieving muitlple variable values at once
-        #params = []
-        #for n in self.dynamicAttributes:
-        #    params.append(self.dynamicAttributeNameIds[n])
-        #out = self.connection.send({"method": "GetValue", "params": params, "jsonrpc": "2.0", "id": 0})
-        #print(out)
+    def _poll_loop(self):
+        """Single long-lived background thread — polls all variables on a fixed interval."""
+        while not self._stop_event.is_set():
+            try:
+                self._update_cache()
+            except Exception as e:
+                self.warn_stream("poll error: " + str(e))
+            self._stop_event.wait(timeout=self.updateIntervalPoll)
 
-        # trivial implementation, requires one api call per each var
+    def _update_cache(self):
+        """Fetch all variable values concurrently (I/O-bound)."""
         self.debug_stream("starting update of all values")
         start_update = time.time()
-        for n in self.dynamicAttributes:
-            try:
-                self.updateValue(n)
-            except Exception as e:
-                self.warn_stream("update issue: " + str(e))
+        names = list(self.dynamicAttributes.keys())
+        with ThreadPoolExecutor(max_workers=min(len(names), 10)) as ex:
+            futures = {ex.submit(self.updateValue, n): n for n in names}
+            for f in futures:
+                try:
+                    f.result()
+                except Exception as e:
+                    self.warn_stream("update issue: " + str(e))
         self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
-        self.last_update = time.time()
-        self.syncing = False
 
     def updateValue(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
@@ -164,11 +154,11 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.debug_stream("adding dynamic attribute, writeType: " + str(writeType))
         attr = Attr(tangoName, variableType, writeType)
         prop = UserDefaultAttrProp()
-        if(min_value != "" and min_value != max_value): 
+        if(min_value != "" and min_value != max_value):
             prop.set_min_value(min_value)
-        if(max_value != "" and min_value != max_value): 
+        if(max_value != "" and min_value != max_value):
             prop.set_max_value(max_value)
-        if(unit != ""): 
+        if(unit != ""):
             prop.set_unit(unit)
         prop.set_label(name)
         #self.debug_stream("adding dynamic attribute, unit: " + str(unit))
@@ -187,6 +177,15 @@ class Symcon(Device, metaclass=DeviceMeta):
     def init_device(self):
         self.set_state(DevState.INIT)
         self.get_device_properties(self.get_device_class())
+
+        # instance-level state (avoids sharing across re-inits or multiple instances)
+        self.connection = 0
+        self.dynamicAttributes = {}
+        self.dynamicAttributeNameIds = {}
+        self.dynamicAttributeNameTypes = {}
+        self.dynamicAttributeValueTypes = {}
+        self._stop_event = threading.Event()
+
         self.info_stream("Connecting to " + str(self.host) + ":" + str(self.port))
         self.connection = symcon.Symcon(str(self.host),int(self.port),str(self.protocol),str(self.username),str(self.password))
         self.info_stream("symcon dir: " + self.connection.execCommand("IPS_GetKernelDir"))
@@ -194,14 +193,21 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.info_stream("kernel version: " + kernelVersion)
         if(float(kernelVersion) < 6):
             raise Exception("Kernel version unsupported, requires 6 and up, detected: " + kernelVersion)
-        
+
         details = json.loads(self.connection.getObjDetails(self.objectid))
         self.info_stream("details")
         self.info_stream(str(details))
         for valueOrObjectId in details["ChildrenIDs"]:
             self.addValueOrObject("", valueOrObjectId)
+
+        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._poll_thread.start()
         self.set_state(DevState.ON)
-        
+
+    def delete_device(self):
+        if hasattr(self, '_stop_event'):
+            self._stop_event.set()
+
     def addValueOrObject(self, prefix, symconId):
         try:
             objDetails = json.loads(self.connection.getObjDetails(symconId))
@@ -211,7 +217,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         objDetails["ObjectName"] = prefix + "_" + objDetails["ObjectName"]
         self.info_stream("processing object or value: " + str(symconId) + " | " + objDetails["ObjectName"])
         # siehe auch https://www.symcon.de/de/service/dokumentation/befehlsreferenz/objektverwaltung/ips-getobject/
-        if objDetails["ObjectType"] == 6: 
+        if objDetails["ObjectType"] == 6:
             self.addValueOrObject(prefix, self.resolveObjectLink(symconId))
         # siehe auch https://www.symcon.de/de/service/dokumentation/befehlsreferenz/objektverwaltung/ips-getobject/
         elif objDetails["ObjectType"] == 2:
@@ -219,18 +225,18 @@ class Symcon(Device, metaclass=DeviceMeta):
         else:
             for valueOrObjectId in objDetails["ChildrenIDs"]:
                 self.addValueOrObject(objDetails["ObjectName"], valueOrObjectId)
-    
+
     def getVarDetails(self, varId):
         out = self.connection.send({"method": "IPS_GetVariable", "params": [varId], "jsonrpc": "2.0", "id": 0})
         if(out["VariableProfile"] != ""):
             out["Profile"] = self.connection.send({"method": "IPS_GetVariableProfile", "params": [out["VariableProfile"]], "jsonrpc": "2.0", "id": 0})
         return out
-    
+
     def resolveObjectLink(self, linkId):
         # see also https://www.symcon.de/de/service/dokumentation/befehlsreferenz/linkverwaltung/ips-getlink/
         resolve = self.connection.send({"method": "IPS_GetLink", "params": [linkId], "jsonrpc": "2.0", "id": 0})
         return resolve["TargetID"]
-    
+
 if __name__ == "__main__":
     deviceServerName = os.getenv("DEVICE_SERVER_NAME")
     run({deviceServerName: Symcon})
