@@ -47,29 +47,23 @@ class Symcon(Device, metaclass=DeviceMeta):
             self._stop_event.wait(timeout=self.updateIntervalPoll)
 
     def _update_cache(self):
-        """Fetch all variable values concurrently (I/O-bound)."""
         self.debug_stream("starting update of all values")
         start_update = time.time()
         names = list(self.dynamicAttributes.keys())
-        with ThreadPoolExecutor(max_workers=min(len(names), 10)) as ex:
-            futures = {ex.submit(self.updateValue, n): n for n in names}
-            for f in futures:
-                try:
-                    f.result()
-                except Exception as e:
-                    self.warn_stream("update issue: " + str(e))
-        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
-
-    def updateValue(self, name):
-        value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
-        if(self.dynamicAttributes[name] != value):
-            id = self.dynamicAttributeNameIds[name]
-            self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name])  + " to " + str(value))
-            self.dynamicAttributes[name] = value
+        batch = [{"method": "GetValue", "params": [self.dynamicAttributeNameIds[n]], "jsonrpc": "2.0", "id": i}
+                for i, n in enumerate(names)]
+        results = self.connection.send(batch)
+        for item, name in zip(results, names):
             try:
-                self.push_change_event(name, self.stringValueToTypeValue(name, value))
+                value = str(item["result"])
+                if self.dynamicAttributes[name] != value:
+                    id = self.dynamicAttributeNameIds[name]
+                    self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name]) + " to " + str(value))
+                    self.dynamicAttributes[name] = value
+                    self.push_change_event(name, self.stringValueToTypeValue(name, value))
             except Exception as e:
                 self.warn_stream("update issue: " + str(e))
+        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
