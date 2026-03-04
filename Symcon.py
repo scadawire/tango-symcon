@@ -54,16 +54,23 @@ class Symcon(Device, metaclass=DeviceMeta):
                 for i, n in enumerate(names)]
         results = self.connection.send(batch)
         for item, name in zip(results, names):
+            value = str(item["result"])
+            self.processUpdate(name, value)
+        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
+
+    def updateValueSingle(self, name):
+        value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
+        self.processUpdate(name, value)
+
+    def processUpdate(self, name, value):
+        if(self.dynamicAttributes[name] != value):
+            id = self.dynamicAttributeNameIds[name]
+            self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name])  + " to " + str(value))
+            self.dynamicAttributes[name] = value
             try:
-                value = str(item["result"])
-                if self.dynamicAttributes[name] != value:
-                    id = self.dynamicAttributeNameIds[name]
-                    self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name]) + " to " + str(value))
-                    self.dynamicAttributes[name] = value
-                    self.push_change_event(name, self.stringValueToTypeValue(name, value))
+                self.push_change_event(name, self.stringValueToTypeValue(name, value))
             except Exception as e:
                 self.warn_stream("update issue: " + str(e))
-        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
@@ -160,7 +167,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[tangoName] = "NEW"
         self.dynamicAttributeNameIds[tangoName] = id
-        self.updateValue(tangoName)
+        self.updateValueSingle(tangoName)
         # omit unit since breaking with % sign --> + " / unit: " + str(unit)
         self.info_stream("added attribute name: " + str(name) + " / tango name " + tangoName
             + " / type: " + str(variableType)
