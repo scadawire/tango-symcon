@@ -242,4 +242,5 @@ class Symcon(Device, metaclass=DeviceMeta):
 
 if __name__ == "__main__":
     deviceServerName = os.getenv("DEVICE_SERVER_NAME")
+    print(f"[{time.strftime('%H:%M:%S')}] calling run()")
     run({deviceServerName: Symcon})
