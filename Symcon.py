@@ -47,15 +47,17 @@ class Symcon(Device, metaclass=DeviceMeta):
             self._stop_event.wait(timeout=self.updateIntervalPoll)
 
     def _update_cache(self):
+        """Fetch all variable values concurrently (I/O-bound)."""
         self.debug_stream("starting update of all values")
         start_update = time.time()
         names = list(self.dynamicAttributes.keys())
-        batch = [{"method": "GetValue", "params": [self.dynamicAttributeNameIds[n]], "jsonrpc": "2.0", "id": i}
-                for i, n in enumerate(names)]
-        results = self.connection.send(batch)
-        for item, name in zip(results, names):
-            value = str(item["result"])
-            self.processUpdate(name, value)
+        with ThreadPoolExecutor(max_workers=min(len(names), 10)) as ex:
+            futures = {ex.submit(self.updateValueSingle, n): n for n in names}
+            for f in futures:
+                try:
+                    f.result()
+                except Exception as e:
+                    self.warn_stream("update issue: " + str(e))
         self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
 
     def updateValueSingle(self, name):
