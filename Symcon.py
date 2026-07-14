@@ -32,7 +32,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         name = attr.get_name()
         value = self.dynamicAttributes[name]
         id = self.dynamicAttributeNameIds[name]
-        self.debug_stream("read value " + str(name) + " / " + str(id) + ": " + value)
+        self.debug_stream("read value %s / %s: %s", name, id, value)
         value = self.stringValueToTypeValue(name, value)
         attr.set_value(value)
         return attr
@@ -43,7 +43,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             try:
                 self._update_cache()
             except Exception as e:
-                self.warn_stream("poll error: " + str(e))
+                self.warn_stream("poll error: %s", str(e))
             self._stop_event.wait(timeout=self.updateIntervalPoll)
 
     def _update_cache(self):
@@ -57,8 +57,8 @@ class Symcon(Device, metaclass=DeviceMeta):
                 try:
                     f.result()
                 except Exception as e:
-                    self.warn_stream("update issue: " + str(e))
-        self.debug_stream("finished update of all values, took: " + str(round(time.time() - start_update, 2)) + "s")
+                    self.warn_stream("update issue: %s", str(e))
+        self.debug_stream("finished update of all values, took: %ss", round(time.time() - start_update, 2))
 
     def updateValueSingle(self, name):
         value = str(self.connection.getValue(self.dynamicAttributeNameIds[name], False))
@@ -67,12 +67,12 @@ class Symcon(Device, metaclass=DeviceMeta):
     def processUpdate(self, name, value):
         if(self.dynamicAttributes[name] != value):
             id = self.dynamicAttributeNameIds[name]
-            self.debug_stream("value " + str(name) + " / " + str(id) + " changed from " + str(self.dynamicAttributes[name])  + " to " + str(value))
+            self.debug_stream("value %s / %s changed from %s to %s", name, id, self.dynamicAttributes[name], value)
             self.dynamicAttributes[name] = value
             try:
                 self.push_change_event(name, self.stringValueToTypeValue(name, value))
             except Exception as e:
-                self.warn_stream("update issue: " + str(e))
+                self.warn_stream("update issue: %s", str(e))
 
     def write_dynamic_attr(self, attr):
         name = attr.get_name()
@@ -112,8 +112,7 @@ class Symcon(Device, metaclass=DeviceMeta):
     def publish(self, args):
         topic, value = args
         id = self.dynamicAttributeNameIds[topic]
-        tag = "Publish variable " + str(topic) + " / " + str(id) + ": " + str(value)
-        self.info_stream(tag)
+        self.debug_stream("Publish variable %s / %s: %s", topic, id, value)
         value = self.stringValueToTypeValue(topic, value)
         self.connection.requestAction(id, value)
 
@@ -123,9 +122,9 @@ class Symcon(Device, metaclass=DeviceMeta):
         id = valueDetails["ObjectID"]
         # tangoName = "symcon-" + str(id) # would be better but issues with current ia references
         tangoName = name
-        self.debug_stream("adding dynamic attribute, # " + str(id) + " / name: " + str(name))
+        self.debug_stream("adding dynamic attribute, # %s / name: %s", id, name)
         varDetails = self.getVarDetails(id)
-        self.debug_stream("adding dynamic attribute, var details var type: " + str(varDetails["VariableType"]))
+        self.debug_stream("adding dynamic attribute, var details var type: %s", varDetails["VariableType"])
         # see https://www.symcon.de/de/service/dokumentation/befehlsreferenz/variablenverwaltung/ips-getvariable/
         # VariableType (ab 4.0) integer Enthält den Variablentyp (0: Boolean, 1: Integer, 2: Float, 3: String)
         variableType = CmdArgType.DevString
@@ -137,7 +136,7 @@ class Symcon(Device, metaclass=DeviceMeta):
             variableType = CmdArgType.DevDouble
         if(varDetails["VariableType"] == 3):
             variableType = CmdArgType.DevString
-        self.debug_stream("adding dynamic attribute, internal var type: " + str(variableType))
+        self.debug_stream("adding dynamic attribute, internal var type: %s", variableType)
         self.dynamicAttributeValueTypes[tangoName] = variableType
         min_value = ""
         max_value = ""
@@ -151,10 +150,10 @@ class Symcon(Device, metaclass=DeviceMeta):
                     min_value = str(int(float(varDetails["Profile"]["MinValue"])))
                     max_value = str(int(float(varDetails["Profile"]["MinValue"])))
 
-        self.debug_stream("adding dynamic attribute, min_value: " + str(min_value))
-        self.debug_stream("adding dynamic attribute, max_value: " + str(max_value))
+        self.debug_stream("adding dynamic attribute, min_value: %s", min_value)
+        self.debug_stream("adding dynamic attribute, max_value: %s", max_value)
         writeType = self.stringValueToWriteType("READ_WRITE") # TODO: is this exposed over symcon?
-        self.debug_stream("adding dynamic attribute, writeType: " + str(writeType))
+        self.debug_stream("adding dynamic attribute, writeType: %s", writeType)
         attr = Attr(tangoName, variableType, writeType)
         prop = UserDefaultAttrProp()
         if(min_value != "" and min_value != max_value):
@@ -164,17 +163,14 @@ class Symcon(Device, metaclass=DeviceMeta):
         if(unit != ""):
             prop.set_unit(unit)
         prop.set_label(name)
-        #self.debug_stream("adding dynamic attribute, unit: " + str(unit))
+        self.debug_stream("adding dynamic attribute, unit: %s", unit)
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
         self.dynamicAttributes[tangoName] = "NEW"
         self.dynamicAttributeNameIds[tangoName] = id
         self.updateValueSingle(tangoName)
-        # omit unit since breaking with % sign --> + " / unit: " + str(unit)
-        self.info_stream("added attribute name: " + str(name) + " / tango name " + tangoName
-            + " / type: " + str(variableType)
-            + " / min: " + str(min_value)
-            + " / max: " + str(max_value))
+        self.info_stream("added attribute name: %s / tango name %s / type: %s / min: %s / max: %s / unit: %s",
+            name, tangoName, variableType, min_value, max_value, unit)
         # self.publish([name, self.dynamicAttributes[name]])
 
     def init_device(self):
@@ -189,17 +185,16 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.dynamicAttributeValueTypes = {}
         self._stop_event = threading.Event()
 
-        self.info_stream("Connecting to " + str(self.host) + ":" + str(self.port))
+        self.info_stream("Connecting to %s:%s", self.host, self.port)
         self.connection = symcon.Symcon(str(self.host),int(self.port),str(self.protocol),str(self.username),str(self.password))
-        self.info_stream("symcon dir: " + self.connection.execCommand("IPS_GetKernelDir"))
+        self.info_stream("symcon dir: %s", self.connection.execCommand("IPS_GetKernelDir"))
         kernelVersion = self.connection.execCommand("IPS_GetKernelVersion")
-        self.info_stream("kernel version: " + kernelVersion)
+        self.info_stream("kernel version: %s", kernelVersion)
         if(float(kernelVersion) < 6):
             raise Exception("Kernel version unsupported, requires 6 and up, detected: " + kernelVersion)
 
         details = json.loads(self.connection.getObjDetails(self.objectid))
-        self.info_stream("details")
-        self.info_stream(str(details))
+        self.debug_stream("object details: %s", details)
         for valueOrObjectId in details["ChildrenIDs"]:
             self.addValueOrObject("", valueOrObjectId)
 
@@ -215,10 +210,10 @@ class Symcon(Device, metaclass=DeviceMeta):
         try:
             objDetails = json.loads(self.connection.getObjDetails(symconId))
         except Exception as e:
-            self.warn_stream("cannot get object details: " + str(e))
+            self.warn_stream("cannot get object details: %s", str(e))
             return
         objDetails["ObjectName"] = prefix + "_" + objDetails["ObjectName"]
-        self.info_stream("processing object or value: " + str(symconId) + " | " + objDetails["ObjectName"])
+        self.debug_stream("processing object or value: %s | %s", symconId, objDetails["ObjectName"])
         # siehe auch https://www.symcon.de/de/service/dokumentation/befehlsreferenz/objektverwaltung/ips-getobject/
         if objDetails["ObjectType"] == 6:
             self.addValueOrObject(prefix, self.resolveObjectLink(symconId))
