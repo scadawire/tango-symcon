@@ -78,7 +78,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         name = attr.get_name()
         self.dynamicAttributes[name] = str(attr.get_write_value())
         self.publish([name, self.dynamicAttributes[name]])
-        self.push_change_event(name)
+        self.push_change_event(name, self.stringValueToTypeValue(name, self.dynamicAttributes[name]))
 
     def stringValueToTypeValue(self, name, val):
         if(self.dynamicAttributeValueTypes[name] == CmdArgType.DevBoolean):
@@ -166,6 +166,7 @@ class Symcon(Device, metaclass=DeviceMeta):
         self.debug_stream("adding dynamic attribute, unit: %s", unit)
         attr.set_default_properties(prop)
         self.add_attribute(attr, r_meth=self.read_dynamic_attr, w_meth=self.write_dynamic_attr)
+        self.set_change_event(tangoName, True, False)
         self.dynamicAttributes[tangoName] = "NEW"
         self.dynamicAttributeNameIds[tangoName] = id
         self.updateValueSingle(tangoName)
