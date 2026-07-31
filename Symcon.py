@@ -96,17 +96,19 @@ class Symcon(Device, metaclass=DeviceMeta):
         return val
 
     def stringValueToWriteType(self, write_type_name) -> AttrWriteType:
+        # READ_WITH_WRITE is not offered: tango only accepts it for an attribute that names an
+        # associated write attribute, which no driver here defines. Building the Attr anyway does
+        # not fail just that attribute, it aborts init_device with "Associated attribute not
+        # defined" and takes the whole device server down.
         if(write_type_name == "READ"):
             return AttrWriteType.READ
         if(write_type_name == "WRITE"):
             return AttrWriteType.WRITE
         if(write_type_name == "READ_WRITE"):
             return AttrWriteType.READ_WRITE
-        if(write_type_name == "READ_WITH_WRITE"):
-            return AttrWriteType.READ_WITH_WRITE
         if(write_type_name == ""):
             return AttrWriteType.READ_WRITE
-        raise Exception("given write_type '" + write_type_name + "' unsupported, supported are: READ, WRITE, READ_WRITE, READ_WITH_WRITE")
+        raise Exception("given write_type '" + write_type_name + "' unsupported, supported are: READ, WRITE, READ_WRITE")
 
     @command(dtype_in=[str])
     def publish(self, args):
